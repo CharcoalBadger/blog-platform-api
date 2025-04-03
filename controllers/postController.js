@@ -16,9 +16,15 @@ const getPostById = async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM posts WHERE id = $1", [id]);
     const post = result.rows[0];
-    if (!post || (!post.published && post.author_id !== req?.user?.id)) {
-      return res.status(404).json({ error: "Post not found" });
+
+    // Allow the author to see unpublished posts
+    if (
+      !post ||
+      (post.published === false && post.author_id !== req?.user?.id)
+    ) {
+      return res.status(404).json({ error: "Post not found or unauthorized" });
     }
+
     res.json(post);
   } catch (err) {
     res.status(500).json({ error: "Could not fetch post" });
@@ -76,10 +82,26 @@ const deletePost = async (req, res) => {
   }
 };
 
+const getAllPosts = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT posts.*, users.username AS author
+       FROM posts
+       JOIN users ON posts.author_id = users.id
+       ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching all posts:", err);
+    res.status(500).json({ error: "Could not fetch all posts" });
+  }
+};
+
 module.exports = {
   getPublishedPosts,
   getPostById,
   createPost,
   updatePost,
   deletePost,
+  getAllPosts,
 };
